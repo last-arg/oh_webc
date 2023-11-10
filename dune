@@ -17,9 +17,6 @@
  (runtime_deps 
   ./package.json
   (glob_files_rec ./test/*)
-  ./node_modules/is-glob/index.js 
-  (glob_files_rec ./node_modules/fast-glob/out/*)
-  ./node_modules/fast-glob/package.json
   (glob_files src/*)
  )
  (preprocess (pps melange.ppx))
