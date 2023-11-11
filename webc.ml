@@ -6,7 +6,6 @@ import path from "path";
 
 import { AstSerializer } from "./src/ast.js";
 import { ModuleScript } from "./src/moduleScript.cjs";
-import { AstCache } from "./src/astCache.js";
 import { ModuleResolution } from "./src/moduleResolution.js";
 import { ComponentManager } from "./src/componentManager.js";
 |}]
@@ -19,6 +18,9 @@ let () = "webc_lib" |> is_glob |> Js.log
 *)
 
 module Path = Webc_lib.Path.Path
+
+module AstCache = Webc_lib.AstCache.AstCache
+let localAstCache = AstCache.create ()
 
 module W = struct
   type ast_options = {
@@ -53,6 +55,10 @@ module W = struct
 		let file = Path.normalizePath file in
 		obj.filePath <- Some file;
 		obj.astOptions.filePath <- Some file
+
+	let set_content obj input file_path = 
+		obj.rawInput <- input;
+		obj.astOptions.filePath <- (Js.toOption file_path)
 		
   let create obj ~(opts: options) = 
     obj.customTransforms <- Js.Obj.empty ();
@@ -72,9 +78,6 @@ end
 let s1 = "world"
 let s2 = {j|hello $s1|j}
 
-module AstCache = Webc_lib.AstCache.AstCache
-let localAstCache = AstCache.create ()
-
 [%%mel.raw {|
 
 class WebC {
@@ -87,11 +90,7 @@ class WebC {
 	}
 
 	setContent(input, filePath) {
-		this.rawInput = input;
-
-		if(filePath) {
-			this.astOptions.filePath = filePath;
-		}
+		set_content(this, input, filePath);
 	}
 
 	setGlobalComponentManager(manager) {
