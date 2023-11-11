@@ -1,5 +1,4 @@
 [%%mel.raw {|
-import fs from "fs";
 import path from "path";
 
 import { AstSerializer } from "./src/ast.js";
@@ -35,7 +34,8 @@ module W = struct
     mutable astOptions: ast_options;
     mutable bundlerMode: bool;
     mutable ignores: string array;
-    mutable rawInput: string;
+    mutable rawInput: string option; [@optional]
+    mutable _cachedContent: string option; [@optional]
     mutable filePath: string option; [@optional]
   } 
 
@@ -45,6 +45,19 @@ module W = struct
     ignores: string array option; [@optional]
   }
 
+	let _get_raw_content this =
+		if Option.is_some this.rawInput then
+			this.rawInput
+		else if Option.is_some this.filePath then
+			let file_path = Option.get this.filePath in
+			let cached_content = (Option.value ~default:"" this._cachedContent) in
+			if (String.length cached_content) = 0 then begin
+				this._cachedContent <- Some (Node.Fs.readFileAsUtf8Sync file_path)
+			end;
+			this._cachedContent
+		else
+			raise (Webc_Error "Missing a setInput or setInputPath method call to set the input.")
+	
 	let get_ast content =
 		match Js.toOption content with 
 		| None -> raise (Webc_Error "WebC.getAST() expects a content argument.")
@@ -76,7 +89,7 @@ module W = struct
 		obj.astOptions <- {filePath = None};
 		obj.bundlerMode <- false;
 		obj.ignores <- Option.value ~default:[||] opts.ignores;
-		Option.iter (fun input -> obj.rawInput <- input) opts.input;
+		obj.rawInput <- opts.input;
 		Option.iter (fun file -> set_input_path obj file) opts.file;
     ()
 
@@ -110,19 +123,7 @@ class WebC {
 	}
 
 	_getRawContent() {
-		if(this.rawInput || this.rawInput === "") {
-			return this.rawInput;
-		} else if(this.filePath) {
-			if(!this._cachedContent) {
-				this._cachedContent = fs.readFileSync(this.filePath, {
-					encoding: "utf8"
-				});
-			}
-
-			return this._cachedContent;
-		} else {
-			throw new Error("Missing a setInput or setInputPath method call to set the input.");
-		}
+		return W._get_raw_content(this);
 	}
 
 	getContent() {
