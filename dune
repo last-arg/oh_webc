@@ -13,11 +13,11 @@
 
 (melange.emit
  (target main)
- (libraries melange.node)
+ (libraries melange.node webc_lib)
  (runtime_deps 
   ./package.json
   (glob_files_rec ./test/*)
-  (glob_files src/*)
+  (glob_files src/*.{js,cjs})
  )
  (preprocess (pps melange.ppx))
  (module_systems es6))
