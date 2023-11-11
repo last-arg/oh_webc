@@ -20,10 +20,12 @@ module Path = Webc_lib.Path.Path
 module AstCache = Webc_lib.AstCache.AstCache
 let localAstCache = AstCache.create ()
 
+exception Webc_Error of string
+
 module W = struct
   type ast_options = {
     mutable filePath: string option [@optional];
-  } [@@deriving abstract]
+  }
 
   type t = {
     mutable customTransforms: <string: unit> Js.t; 
@@ -43,11 +45,10 @@ module W = struct
     ignores: string array option; [@optional]
   }
 
-(*
-  external webc: t = "WebC"
-  external create1: unit -> t = "WebC" [@@mel.new]  
-  external compile1: t -> unit = "compile" [@@mel.send]
-*)
+	let get_ast content =
+		match Js.toOption content with 
+		| None -> raise (Webc_Error "WebC.getAST() expects a content argument.")
+		| Some content -> AstCache.get localAstCache content
 
 	let get_rendering_mode content =
 		if not (Js.String.startsWith "<!doctype" content) && 
@@ -170,11 +171,7 @@ class WebC {
 	}
 
 	getAST(content) {
-		if(!content) {
-			throw new Error("WebC.getAST() expects a content argument.");
-		}
-
-		return localAstCache.get(content);
+		return get_ast(content);
 	}
 
 	setTransform(key, callback) {
@@ -337,8 +334,6 @@ class WebC {
 		return serializer.compile(ast, options.slots);
 	}
 }
-
-var w = new WebC();
 
 export { WebC, ModuleScript, ComponentManager };
 |}]
