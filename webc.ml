@@ -1,10 +1,3 @@
-(*
-external is_glob : string -> bool = "default" [@@mel.module "is-glob"]
-[%%mel.raw "import './test.js'"]
-let () = Js.log "webc_lib"
-let () = "webc_lib" |> is_glob |> Js.log
-*)
-
 [%%mel.raw {|
 import fs from "fs";
 import fastglob from "fast-glob";
@@ -17,24 +10,74 @@ import { ModuleScript } from "./src/moduleScript.cjs";
 import { AstCache } from "./src/astCache.js";
 import { ModuleResolution } from "./src/moduleResolution.js";
 import { ComponentManager } from "./src/componentManager.js";
+|}]
 
+(*
+external is_glob : string -> bool = "default" [@@mel.module "is-glob"]
+[%%mel.raw "import './test.js'"]
+let () = Js.log "webc_lib"
+let () = "webc_lib" |> is_glob |> Js.log
+*)
+
+module W = struct
+  type ast_options = {
+    mutable filePath: string option [@optional];
+  } [@@deriving abstract]
+
+  type t = {
+    mutable customTransforms: <string: unit> Js.t; 
+    mutable customHelpers: <string: unit> Js.t; 
+    mutable customScopedHelpers: <string: unit> Js.t; 
+    mutable globalComponents: <string: unit> Js.t;
+    mutable astOptions: ast_options;
+    mutable bundlerMode: bool;
+    mutable ignores: string array;
+    mutable rawInput: string;
+    (*
+    mutable filePath: string option; 
+    *)
+  } 
+
+  type options = {
+    file: string option; [@optional]
+    input: string option; [@optional]
+    ignores: string array option; [@optional]
+  }
+
+(*
+  external webc: t = "WebC"
+  external create1: unit -> t = "WebC" [@@mel.new]  
+  external compile1: t -> unit = "compile" [@@mel.send]
+*)
+  let create obj ~(opts:options) = 
+    obj.customTransforms <- Js.Obj.empty ();
+		obj.customHelpers <- Js.Obj.empty ();
+		obj.customScopedHelpers <- Js.Obj.empty ();
+		obj.globalComponents <- Js.Obj.empty ();
+		obj.astOptions <- {filePath = None};
+		obj.bundlerMode <- false;
+		obj.ignores <- Option.value ~default:[||] opts.ignores;
+		if Option.is_some opts.input || String.length (Option.get opts.input) = 0 then
+			obj.rawInput <- Option.get opts.input;
+		
+    ()
+
+  let compile webc  = Js.log webc
+end
+
+let s1 = "world"
+let s2 = {j|hello $s1|j}
+
+let inside webc = Js.log webc
+
+[%%mel.raw {|
 const localAstCache = new AstCache();
 
 class WebC {
 	constructor(options = {}) {
-		let { file, input } = options;
+    W.create(this, options);
+		let { file } = options;
 
-		this.customTransforms = {};
-		this.customHelpers = {};
-		this.customScopedHelpers = {};
-		this.globalComponents = {};
-		this.astOptions = {};
-		this.bundlerMode = false;
-		this.ignores = options.ignores || [];
-
-		if(input || input === "") {
-			this.rawInput = input;
-		}
 		if(file) {
 			this.setInputPath(file);
 		}
@@ -295,6 +338,8 @@ class WebC {
 		return serializer.compile(ast, options.slots);
 	}
 }
+
+var w = new WebC();
 
 export { WebC, ModuleScript, ComponentManager };
 |}]
