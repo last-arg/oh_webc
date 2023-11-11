@@ -15,7 +15,6 @@ type fastglob
 external fastglob: fastglob = "default" [@@module "fast-glob"]
 let fastglob = fastglob
 
-
 module Path = Webc_lib.Path.Path
 
 module AstCache = Webc_lib.AstCache.AstCache
@@ -50,6 +49,15 @@ module W = struct
   external compile1: t -> unit = "compile" [@@mel.send]
 *)
 
+	let get_rendering_mode content =
+		if not (Js.String.startsWith "<!doctype" content) && 
+			 not (Js.String.startsWith "<!DOCTYPE" content) &&
+			 not (Js.String.startsWith "<html" content) 
+		then
+			"component"
+		else
+			"page"
+	
 	let set_input_path obj file =
 		let file = Path.normalizePath file in
 		obj.filePath <- Some file;
@@ -97,11 +105,7 @@ class WebC {
 	}
 
 	getRenderingMode(content) {
-		if(!content.startsWith("<!doctype") && !content.startsWith("<!DOCTYPE") && !content.startsWith("<html")) {
-			return "component";
-		}
-
-		return "page";
+		return get_rendering_mode(content)
 	}
 
 	_getRawContent() {
