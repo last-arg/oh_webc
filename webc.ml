@@ -1,7 +1,5 @@
 [%%mel.raw {|
 import fs from "fs";
-import fastglob from "fast-glob";
-import isGlob from "is-glob";
 import path from "path";
 
 import { AstSerializer } from "./src/ast.js";
@@ -10,12 +8,13 @@ import { ModuleResolution } from "./src/moduleResolution.js";
 import { ComponentManager } from "./src/componentManager.js";
 |}]
 
-(*
-external is_glob : string -> bool = "default" [@@mel.module "is-glob"]
-[%%mel.raw "import './test.js'"]
-let () = Js.log "webc_lib"
-let () = "webc_lib" |> is_glob |> Js.log
-*)
+external isGlob: string -> bool = "default" [@@mel.module "is-glob"]
+let isGlob = isGlob
+
+type fastglob
+external fastglob: fastglob = "default" [@@module "fast-glob"]
+let fastglob = fastglob
+
 
 module Path = Webc_lib.Path.Path
 
