@@ -49,7 +49,7 @@ module W = struct
   external create1: unit -> t = "WebC" [@@mel.new]  
   external compile1: t -> unit = "compile" [@@mel.send]
 *)
-  let create obj ~(opts:options) = 
+  let create obj ~(opts: options) = 
     obj.customTransforms <- Js.Obj.empty ();
 		obj.customHelpers <- Js.Obj.empty ();
 		obj.customScopedHelpers <- Js.Obj.empty ();
@@ -57,9 +57,7 @@ module W = struct
 		obj.astOptions <- {filePath = None};
 		obj.bundlerMode <- false;
 		obj.ignores <- Option.value ~default:[||] opts.ignores;
-		if Option.is_some opts.input || String.length (Option.get opts.input) = 0 then
-			obj.rawInput <- Option.get opts.input;
-		
+		Option.iter (fun input -> obj.rawInput <- input) opts.input;
     ()
 
   let compile webc  = Js.log webc
