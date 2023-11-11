@@ -4,7 +4,6 @@ import fastglob from "fast-glob";
 import isGlob from "is-glob";
 import path from "path";
 
-import { Path } from "./src/path.js";
 import { AstSerializer } from "./src/ast.js";
 import { ModuleScript } from "./src/moduleScript.cjs";
 import { AstCache } from "./src/astCache.js";
@@ -18,6 +17,8 @@ external is_glob : string -> bool = "default" [@@mel.module "is-glob"]
 let () = Js.log "webc_lib"
 let () = "webc_lib" |> is_glob |> Js.log
 *)
+
+module Path = Webc_src.Path.Path
 
 module W = struct
   type ast_options = {
@@ -33,9 +34,7 @@ module W = struct
     mutable bundlerMode: bool;
     mutable ignores: string array;
     mutable rawInput: string;
-    (*
-    mutable filePath: string option; 
-    *)
+    mutable filePath: string option; [@optional]
   } 
 
   type options = {
@@ -49,6 +48,12 @@ module W = struct
   external create1: unit -> t = "WebC" [@@mel.new]  
   external compile1: t -> unit = "compile" [@@mel.send]
 *)
+
+	let set_input_path obj file =
+		let file = Path.normalizePath file in
+		obj.filePath <- Some file;
+		obj.astOptions.filePath <- Some file
+		
   let create obj ~(opts: options) = 
     obj.customTransforms <- Js.Obj.empty ();
 		obj.customHelpers <- Js.Obj.empty ();
@@ -58,6 +63,7 @@ module W = struct
 		obj.bundlerMode <- false;
 		obj.ignores <- Option.value ~default:[||] opts.ignores;
 		Option.iter (fun input -> obj.rawInput <- input) opts.input;
+		Option.iter (fun file -> set_input_path obj file) opts.file;
     ()
 
   let compile webc  = Js.log webc
@@ -74,17 +80,10 @@ const localAstCache = new AstCache();
 class WebC {
 	constructor(options = {}) {
     W.create(this, options);
-		let { file } = options;
-
-		if(file) {
-			this.setInputPath(file);
-		}
 	}
 
 	setInputPath(file) {
-		file = Path.normalizePath(file);
-		this.filePath = file;
-		this.astOptions.filePath = file;
+		W.set_input_path(this, file);
 	}
 
 	setContent(input, filePath) {

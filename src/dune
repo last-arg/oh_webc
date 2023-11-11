@@ -1,5 +1,5 @@
 (library
- (name webc_lib)
+ (name webc_src)
  (preprocess (pps melange.ppx))
  (modes melange)
 )

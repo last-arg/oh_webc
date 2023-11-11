@@ -11,6 +11,8 @@ let normalize_path file_path =
 	else
 		file_path
 
-module Path = struct 
+module Path : sig
+  val normalizePath : string -> string
+end = struct 
 	let normalizePath file_path = normalize_path file_path
 end
