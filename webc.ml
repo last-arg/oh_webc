@@ -18,7 +18,7 @@ let () = Js.log "webc_lib"
 let () = "webc_lib" |> is_glob |> Js.log
 *)
 
-module Path = Webc_src.Path.Path
+module Path = Webc_lib.Path.Path
 
 module W = struct
   type ast_options = {
@@ -72,10 +72,10 @@ end
 let s1 = "world"
 let s2 = {j|hello $s1|j}
 
-let inside webc = Js.log webc
+module AstCache = Webc_lib.AstCache.AstCache
+let localAstCache = AstCache.create ()
 
 [%%mel.raw {|
-const localAstCache = new AstCache();
 
 class WebC {
 	constructor(options = {}) {

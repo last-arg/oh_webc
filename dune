@@ -13,7 +13,7 @@
 
 (melange.emit
  (target main)
- (libraries melange.node webc_src)
+ (libraries melange.node webc_lib)
  (runtime_deps 
   ./package.json
   (glob_files_rec ./test/*)
