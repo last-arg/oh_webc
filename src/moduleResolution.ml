@@ -1,15 +1,50 @@
 [%%mel.raw {|
 import { TemplatePath } from "@11ty/eleventy-utils";
-import path from "path";
-import { Path } from "./path.js";
 |}]
+
+module P = Path.Path
 
 type aliases = string Js.Dict.t
 
 type obj = {
 	mutable aliases: aliases;
-	mutable tagName: string;
+	mutable tagName: string option; [@optional]
 } 
+
+type regex = {
+		startsWithAlias: Js.Re.t;
+}
+
+let regex = {
+		startsWithAlias = [%mel.re {|/^([^\:]+)\:/i|}];
+}
+
+let get_alias full_path =
+	Js.String.match_ regex.startsWithAlias full_path
+	|> Option.fold ~none:None ~some:(fun arr -> 
+		if Option.is_some arr.(1) then arr.(1) else None
+	)
+
+let has_alias this alias = 
+	Js.Dict.get this.aliases (Option.get alias) |> Option.is_some
+
+let resolve_aliases this full_path =
+	let alias = get_alias full_path in
+	(* unaliased, relative from component path *)
+	if Option.is_none alias then
+		P.normalizePath full_path
+	else if not (has_alias this alias) then
+		let keys = Js.Dict.keys this.aliases |> Js.Array.joinWith ", " in 
+		failwith {j|
+			Invalid WebC aliased import path, requested: $full_path (known aliases: $keys})
+		|j}
+	else
+		(* aliases, are relative from project root *)
+		let alias = Option.get alias in
+		let alias_value = Js.Dict.unsafeGet this.aliases alias in
+		let unprefixed_path = Js.String.slice ~from:(String.length alias |> succ) ~to_:(String.length full_path) full_path in
+		let path = Node.Path.join2 alias_value unprefixed_path in 
+		P.normalizePath path
 
 let set_aliases ?(aliases = Js.Dict.empty ()) this =
 	if Option.is_none (Js.Dict.get aliases "npm") then
@@ -25,9 +60,7 @@ class ModuleResolution {
 		this.setAliases(aliases);
 	}
 
-	static REGEX = {
-		startsWithAlias: /^([^\:]+)\:/i
-	};
+	static REGEX = regex;
 
 	setAliases(aliases = {}) {
 		set_aliases(aliases, this);
@@ -58,26 +91,11 @@ class ModuleResolution {
 	}
 
 	static getAlias(fullPath) {
-		let match = fullPath.match(ModuleResolution.REGEX.startsWithAlias);
-		if(match && match[1]) {
-			return match[1];
-		}
-		return undefined;
+		return get_alias(fullPath);
 	}
 
 	resolveAliases(fullPath) {
-		let alias = ModuleResolution.getAlias(fullPath);
-
-		// unaliased, relative from component path
-		if(!alias) {
-			return Path.normalizePath(fullPath);
-		} else if(!this.aliases[alias]) {
-			throw new Error(`Invalid WebC aliased import path, requested: ${fullPath} (known aliases: ${Object.keys(this.aliases).join(", ")})`);
-		}
-
-		// aliases, are relative from project root
-		let unprefixedPath = fullPath.slice(alias.length + 1);
-		return Path.normalizePath(path.join(this.aliases[alias], unprefixedPath));
+		return resolve_aliases(this, fullPath);
 	}
 
 	// npm:@11ty/eleventy is supported when tag name is supplied by WebC (returns `node_modules/@11ty/eleventy/tagName.webc`)
