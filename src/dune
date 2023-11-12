@@ -1,5 +1,6 @@
 (library
  (name webc_lib)
+ (libraries melange.node)
  (preprocess (pps melange.ppx))
  (modes melange)
 )
