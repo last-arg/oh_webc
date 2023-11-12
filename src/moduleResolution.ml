@@ -8,6 +8,7 @@ type aliases = string Js.Dict.t
 
 type obj = {
 	mutable aliases: aliases;
+	mutable tagName: string;
 } 
 
 let set_aliases ?(aliases = Js.Dict.empty ()) this =
@@ -15,7 +16,8 @@ let set_aliases ?(aliases = Js.Dict.empty ()) this =
 		Js.Dict.set aliases "npm" "./node_modules/";
 	this.aliases <- aliases
 
-let create aliases = set_aliases aliases
+let set_tag_name this tag_name = 
+	this.tagName <- tag_name
 
 [%%mel.raw {|
 class ModuleResolution {
@@ -32,7 +34,7 @@ class ModuleResolution {
 	}
 
 	setTagName(tagName) {
-		this.tagName = tagName;
+		set_tag_name(this, tagName);
 	}
 
 	checkLocalPath(resolvedPath) {
@@ -104,3 +106,11 @@ class ModuleResolution {
 
 export { ModuleResolution };
 |}]
+
+let [@warning "-27"] create: aliases option -> obj = [%mel.raw {|
+	function(aliases) {
+		return new ModuleResolution(aliases)
+	}
+|}]
+
+

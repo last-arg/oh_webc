@@ -3,9 +3,10 @@ import path from "path";
 
 import { AstSerializer } from "./src/ast.js";
 import { ModuleScript } from "./src/moduleScript.cjs";
-import { ModuleResolution } from "./src/moduleResolution.js";
 import { ComponentManager } from "./src/componentManager.js";
 |}]
+
+let new_module_resolution = Webc_lib.ModuleResolution.create
 
 external isGlob: string -> bool = "default" [@@mel.module "is-glob"]
 let isGlob = isGlob
@@ -222,7 +223,7 @@ class WebC {
 		}
 
 		if(Array.isArray(rawFiles)) {
-			let moduleResolver = new ModuleResolution();
+			let moduleResolver = new_module_resolution();
 			let resolvedFiles = new Set();
 			for(let file of rawFiles) {
 				// Resolve `npm:` aliases
