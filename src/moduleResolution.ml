@@ -25,6 +25,16 @@ let get_alias full_path =
 		if Option.is_some arr.(1) then arr.(1) else None
 	)
 
+let has_valid_alias this full_path =
+	let starts = Js.Dict.keys this.aliases in
+	let result = ref false in
+	(* TODO: see if I can do early return *)
+	for i = 0 to (Array.length starts - 1) do 
+		if Js.String.startsWith (starts.(i) ^ ":") full_path then
+			result := true
+	done;
+	!result
+
 let has_alias this alias = 
 	Js.Dict.get this.aliases (Option.get alias) |> Option.is_some
 
@@ -81,13 +91,7 @@ class ModuleResolution {
 	}
 
 	hasValidAlias(fullPath) {
-		let starts = Object.keys(this.aliases);
-		for(let start of starts) {
-			if(fullPath.startsWith(`${start}:`)) {
-				return true;
-			}
-		}
-		return false;
+		return has_valid_alias(this, fullPath);
 	}
 
 	static getAlias(fullPath) {
