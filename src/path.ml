@@ -11,6 +11,7 @@ let normalize_path file_path =
 	else
 		file_path
 
+(* Can't remove it now because some JS code expects Path *)
 module Path : sig
   val normalizePath : string -> string
 end = struct 

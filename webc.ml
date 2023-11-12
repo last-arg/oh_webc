@@ -16,7 +16,7 @@ let fastglob = fastglob
 
 module Path = Webc_lib.Path.Path
 
-module AstCache = Webc_lib.AstCache.AstCache
+module AstCache = Webc_lib.AstCache
 let localAstCache = AstCache.create ()
 
 exception Webc_Error of string
