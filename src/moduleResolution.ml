@@ -1,7 +1,23 @@
+[%%mel.raw {|
 import { TemplatePath } from "@11ty/eleventy-utils";
 import path from "path";
 import { Path } from "./path.js";
+|}]
 
+type aliases = string Js.Dict.t
+
+type obj = {
+	mutable aliases: aliases;
+} 
+
+let set_aliases ?(aliases = Js.Dict.empty ()) this =
+	if Option.is_none (Js.Dict.get aliases "npm") then
+		Js.Dict.set aliases "npm" "./node_modules/";
+	this.aliases <- aliases
+
+let create aliases = set_aliases aliases
+
+[%%mel.raw {|
 class ModuleResolution {
 	constructor(aliases) {
 		this.setAliases(aliases);
@@ -12,10 +28,7 @@ class ModuleResolution {
 	};
 
 	setAliases(aliases = {}) {
-		// TODO project root alias?
-		this.aliases = Object.assign({
-			"npm": "./node_modules/"
-		}, aliases);
+		set_aliases(aliases, this);
 	}
 
 	setTagName(tagName) {
@@ -90,3 +103,4 @@ class ModuleResolution {
 }
 
 export { ModuleResolution };
+|}]
