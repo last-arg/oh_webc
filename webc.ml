@@ -11,9 +11,16 @@ let new_module_resolution = Webc_lib.ModuleResolution.create
 external isGlob: string -> bool = "default" [@@mel.module "is-glob"]
 let isGlob = isGlob
 
+type fastglob_opts = {
+	ignore: string array;
+	caseSensitiveMatch: bool;
+	dot: bool;
+}
 type fastglob
 external fastglob: fastglob = "default" [@@module "fast-glob"]
-let fastglob = fastglob
+type glob
+type fastglob_result
+external fastglob_sync: fastglob -> glob -> fastglob_opts -> fastglob_result = "sync" [@@mel.send]
 
 module Path = Webc_lib.Path.Path
 
@@ -45,6 +52,13 @@ module W = struct
     input: string option; [@optional]
     ignores: string array option; [@optional]
   }
+
+	let find_glob glob ?(ignores = [||]) () =
+		fastglob_sync fastglob glob {
+			ignore = ignores;
+			caseSensitiveMatch = false;
+			dot = false;
+		}
 
 	let _get_raw_content this =
 		if Option.is_some this.rawInput then
@@ -207,11 +221,7 @@ class WebC {
 	}
 
 	static findGlob(glob, ignores = []) {
-		return fastglob.sync(glob, {
-			ignore: ignores,
-			caseSensitiveMatch: false,
-			dot: false,
-		});
+		return find_glob(glob, ignores);
 	}
 
 	static getComponentsMap(globOrObject, ignores) {
