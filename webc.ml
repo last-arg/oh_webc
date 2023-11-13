@@ -6,8 +6,7 @@ import { ComponentManager } from "./src/componentManager.js";
 
 let new_module_resolution = Webc_lib.ModuleResolution.create
 
-external isGlob: string -> bool = "default" [@@mel.module "is-glob"]
-let isGlob = isGlob
+external is_glob: string -> bool = "default" [@@mel.module "is-glob"]
 
 type fastglob_opts = {
 	ignore: string array;
@@ -81,7 +80,7 @@ module W = struct
 					let has_valid_alias = has_valid_alias module_resolver file in
 					let file = if has_valid_alias then resolve_aliases module_resolver file else file in
 					(* Multiple glob searches *)
-					if isGlob file then
+					if is_glob file then
 						find_glob file ignores
 						|> Array.iter (fun glob_file -> resolved_files := SetString.add glob_file !resolved_files)
 					else
@@ -354,6 +353,4 @@ class WebC {
 
 export { WebC, ModuleScript, ComponentManager };
 |}]
-
-
 
