@@ -28,7 +28,9 @@ let get_alias full_path =
 let has_valid_alias this full_path =
 	let starts = Js.Dict.keys this.aliases in
 	let result = ref false in
-	(* TODO: see if I can do early return *)
+	(* TODO: see if I can do early return 
+		Example of breaking (clumsy): https://github.com/ocaml/ocaml.org/pull/1529/files#diff-d0a6784185f76706490e4c7b55bfe764c2d2c228e7d6f3c629430e77d1123bc7R330-R339
+	*)
 	for i = 0 to (Array.length starts - 1) do 
 		if Js.String.startsWith (starts.(i) ^ ":") full_path then
 			result := true

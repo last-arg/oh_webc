@@ -1,6 +1,4 @@
 [%%mel.raw {|
-import path from "path";
-
 import { AstSerializer } from "./src/ast.js";
 import { ModuleScript } from "./src/moduleScript.cjs";
 import { ComponentManager } from "./src/componentManager.js";
@@ -59,38 +57,53 @@ module W = struct
 		}
 
 	module SetString = Set.Make(String)
-	let get_components_map raw_files ignores = 
-		let module_resolver = new_module_resolution None in
-		let resolved_files = ref SetString.empty in
 
-		raw_files |> Array.iter (fun file ->
-			let open Webc_lib.ModuleResolution in
-			(* Resolve `npm:` aliases *)
-			let has_valid_alias = has_valid_alias module_resolver file in
-			let file = if has_valid_alias then resolve_aliases module_resolver file else file in
-			(* Multiple glob searches *)
-			if isGlob file then
-				find_glob file ignores
-				|> Array.iter (fun glob_file -> resolved_files := SetString.add glob_file !resolved_files)
-			else
-				resolved_files := SetString.add file !resolved_files;
-		);
+	(* Being naughty. Doing this because JS input can be string, array, or object *)
+	let make_components_input input ignores=
+		if [%mel.raw "typeof input === 'string'"] then
+			`Arr (find_glob input ignores)
+		else if [%mel.raw "Array.isArray(input)"] then
+			`Arr [%mel.raw "input"]
+		else
+			`Obj [%mel.raw "input"]
 
-		let obj = Js.Dict.empty () in
-		SetString.iter (fun file ->
-			let parsed_file = Node.Path.parse file in
-			let name = parsed_file##name in 
-			let obj_value = Js.Dict.get obj name in 
-			if obj_value |> Option.is_some then begin
-				let err = [%mel.raw {|
-					new Error(`Global component name collision on "${name}" between: ${obj[name]} and ${file}`)
-				|}] in
-				raise err
-		end; 
+	let get_components_map glob_or_object ignores = 
+		match make_components_input glob_or_object ignores with
+		| `Arr raw_files ->
+			let obj = Js.Dict.empty () in
+			if Js.Array.isArray raw_files then begin
+				let module_resolver = new_module_resolution None in
+				let resolved_files = ref SetString.empty in
+
+				raw_files |> Array.iter (fun file ->
+					let open Webc_lib.ModuleResolution in
+					(* Resolve `npm:` aliases *)
+					let has_valid_alias = has_valid_alias module_resolver file in
+					let file = if has_valid_alias then resolve_aliases module_resolver file else file in
+					(* Multiple glob searches *)
+					if isGlob file then
+						find_glob file ignores
+						|> Array.iter (fun glob_file -> resolved_files := SetString.add glob_file !resolved_files)
+					else
+						resolved_files := SetString.add file !resolved_files;
+				);
+
+				SetString.iter (fun file ->
+					let parsed_file = Node.Path.parse file in
+					let name = parsed_file##name in 
+					let obj_value = Js.Dict.get obj name in 
+					if obj_value |> Option.is_some then begin
+						let err = [%mel.raw {|
+							new Error(`Global component name collision on "${name}" between: ${obj[name]} and ${file}`)
+						|}] in
+						raise err
+				end; 
 			
-		Js.Dict.set obj name file;
-		) !resolved_files;
-		obj
+				Js.Dict.set obj name file;
+				) !resolved_files;
+			end;
+			obj
+		| `Obj obj -> obj
 
 	let _get_raw_content this =
 		if Option.is_some this.rawInput then
@@ -257,48 +270,7 @@ class WebC {
 	}
 
 	static getComponentsMap(globOrObject, ignores) {
-		let rawFiles = globOrObject;
-
-		// Passing in a single string is assumed to be a glob
-		if(typeof rawFiles === "string") {
-			rawFiles = WebC.findGlob(globOrObject, ignores);
-		}
-
-		if(Array.isArray(rawFiles)) {
-			return get_components_map(rawFiles, ignores)
-			let moduleResolver = new_module_resolution();
-			let resolvedFiles = new Set();
-			for(let file of rawFiles) {
-				// Resolve `npm:` aliases
-				let hasValidAlias = moduleResolver.hasValidAlias(file);
-				if(hasValidAlias) {
-					file = moduleResolver.resolveAliases(file);
-				}
-
-				// Multiple glob searches
-				if(isGlob(file)) {
-					let globResults = WebC.findGlob(file, ignores);
-					for(let globFile of globResults) {
-						resolvedFiles.add(globFile);
-					}
-				} else {
-					resolvedFiles.add(file);
-				}
-			}
-
-			let obj = {};
-			for(let file of resolvedFiles) {
-				let {name} = path.parse(file);
-				if(obj[name]) {
-					throw new Error(`Global component name collision on "${name}" between: ${obj[name]} and ${file}`)
-				}
-				obj[name] = file;
-			}
-
-			return obj;
-		}
-
-		return globOrObject;
+		return get_components_map(globOrObject, ignores)
 	}
 
 	defineComponents(globOrObject) {
