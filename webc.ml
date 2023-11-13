@@ -18,9 +18,7 @@ type fastglob_opts = {
 }
 type fastglob
 external fastglob: fastglob = "default" [@@module "fast-glob"]
-type glob
-type fastglob_result
-external fastglob_sync: fastglob -> glob -> fastglob_opts -> fastglob_result = "sync" [@@mel.send]
+external fastglob_sync: fastglob -> string -> fastglob_opts -> string array = "sync" [@@mel.send]
 
 module Path = Webc_lib.Path.Path
 
@@ -59,6 +57,40 @@ module W = struct
 			caseSensitiveMatch = false;
 			dot = false;
 		}
+
+	module SetString = Set.Make(String)
+	let get_components_map raw_files ignores = 
+		let module_resolver = new_module_resolution None in
+		let resolved_files = ref SetString.empty in
+
+		raw_files |> Array.iter (fun file ->
+			let open Webc_lib.ModuleResolution in
+			(* Resolve `npm:` aliases *)
+			let has_valid_alias = has_valid_alias module_resolver file in
+			let file = if has_valid_alias then resolve_aliases module_resolver file else file in
+			(* Multiple glob searches *)
+			if isGlob file then
+				find_glob file ignores
+				|> Array.iter (fun glob_file -> resolved_files := SetString.add glob_file !resolved_files)
+			else
+				resolved_files := SetString.add file !resolved_files;
+		);
+
+		let obj = Js.Dict.empty () in
+		SetString.iter (fun file ->
+			let parsed_file = Node.Path.parse file in
+			let name = parsed_file##name in 
+			let obj_value = Js.Dict.get obj name in 
+			if obj_value |> Option.is_some then begin
+				let err = [%mel.raw {|
+					new Error(`Global component name collision on "${name}" between: ${obj[name]} and ${file}`)
+				|}] in
+				raise err
+		end; 
+			
+		Js.Dict.set obj name file;
+		) !resolved_files;
+		obj
 
 	let _get_raw_content this =
 		if Option.is_some this.rawInput then
@@ -233,6 +265,7 @@ class WebC {
 		}
 
 		if(Array.isArray(rawFiles)) {
+			return get_components_map(rawFiles, ignores)
 			let moduleResolver = new_module_resolution();
 			let resolvedFiles = new Set();
 			for(let file of rawFiles) {
